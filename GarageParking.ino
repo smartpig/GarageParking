@@ -1,5 +1,3 @@
-#include <NewPing.h>            //include the NewPing library
-
 //I/O pins
 int bLED1 = 4;
 int bLED2 = 5;
@@ -7,25 +5,28 @@ int bLED3 = 6;
 int bLED4 = 7;
 int gLED = 8;
 int rLED = 9; 
-int buttonPin = 10;
-int echo = 11;
-int trigger = 12;
 
+//Digital pin 11 for reading in the pulse width from the MaxSonar device.
+
+//This variable is a constant because the pin will not change throughout execution of this code.
+
+const int pwPin = 11;
+
+
+
+//variables needed to store values
+
+long pulse, inches, cm;
 
 
 //values to keep track of
-int distance = 0;
-int set = 0;
-int upper = 0;             
-int lower = 0;
-int range = 3;                                   //range is +/- so it is double the value in inches
+int settarget = 12; // target distance of parked car - change to make closer or further from wall
+int upper = 14;    //upper range of parking target         
+int lower = 10;    // lower range of parking target
 int count = 0;
-boolean lastButton = LOW;          //keep track of button status
-boolean currentButton = LOW;
 int previous = 0;                              //keep track of distances to identify when car is parked
 int current = 0;
 
-NewPing sonar(0, 1, 500);       //constructor for NewPing sonar(triggerPin, echoPin, max_CM)
 
 void setup()
 {
@@ -35,32 +36,49 @@ pinMode(bLED3, OUTPUT);
 pinMode(bLED4, OUTPUT);
 pinMode(gLED, OUTPUT);
 pinMode(rLED, OUTPUT);
-pinMode(buttonPin, INPUT);
+Serial.begin(9600);
 }
+
+
 void loop()
 {
-  distance = sonar.ping_in();                  //detect distance in inches
-  if(distance == 0) distance = 500;            //if no distance is read, set at max distance
-  current = distance;                          //to check how long car has been parked in order to enter power save
+  pinMode(pwPin, INPUT);
+
+
+
+  //Used to read in the pulse that is being sent by the MaxSonar device.
+
+  //Pulse Width representation with a scale factor of 147 uS per Inch.
+
+
+
+  pulse = pulseIn(pwPin, HIGH);
+
+  //147uS per inch
+
+  inches = pulse / 147;
+
+  //change inches to centimetres
+
+  cm = inches * 2.54;
+
+
+
+  Serial.print(inches);
+
+  Serial.print("in, ");
+
+  Serial.print(cm);
+
+  Serial.print("cm");
+
+  Serial.println();
+  
+  current = inches;                          //to check how long car has been parked in order to enter power save
  
   delay(100);                                  //Slow program down - save battery?
  
-  currentButton = debounce(lastButton);        //reads button status and performs debounce, fixes unexpected button behavior
- 
-  if(lastButton == LOW && currentButton == HIGH)          //when button pushed, set desired distance for parking
-  {
-    set = distance;                                //new variable for distance measured
-    flashGreen();                                  //flicker green LED 3 times
-    flashGreen();
-    flashGreen();
-  }
- 
-  lastButton = currentButton;            //reset button status
- 
-  upper = set + range;                        //  +/- inch tolerance range 
-  lower = set - range; 
- 
-  if(distance <= upper && distance >= lower)            //within set area, stop!
+  if(inches <= upper && inches >= lower)            //within set area, stop!
   {
     //distance fluctuates some resulting in false movement detection
     if(current == previous || current == previous + 1 || current == previous - 1 )
@@ -84,53 +102,42 @@ void loop()
     }
    
   }
-  if(distance > upper)
+  if(inches > upper)
   { 
     count = 0;                            //if car moves slow enough, it may never reset the count in above code, we reset again, just in case
                                        
-    if(distance >= set+120)              //sensor becomes innacurate at distances much further than 120 inches
+    if(inches >= set+120)              //sensor becomes innacurate at distances much further than 120 inches
     {                                                   //no car in garage turn LED off 
       off();
     }                                              
-    if(distance < set+120 && distance > set+75)                  //car is detected
+    if(inches < set+120 && inches > set+75)                  //car is detected
     {                                                            //if distance is less than set + 120 inches and greater than set +75 inches
       blue1();
      }
-    if(distance <= set+75 && distance > set+50)                  //wihtin 75-50 inches of set distance, getting closer
+    if(inches <= set+75 && inches > set+50)                  //wihtin 75-50 inches of set distance, getting closer
     { 
       blue2();
     } 
-    if(distance <= set+50 && distance > set+20)                  //wihtin 50-25 inches of set distance, almost there
+    if(inches <= set+50 && inches > set+20)                  //wihtin 50-25 inches of set distance, almost there
     { 
       blue3();
     } 
-    if(distance <= set+20 && distance > set+3)                  //wihtin 25-6 inches of set distance, get ready to stop
+    if(inches <= set+20 && inches > set+2)                  //wihtin 25-6 inches of set distance, get ready to stop
     { 
       blue4();
     } 
 
   }
   
-  if(distance < lower)                                                           //car is too close, you must back up
+  if(inches < lower)                                                           //car is too close, you must back up
   {
     count = 0;                                                                         //same situation for if car moves very slowly
     flashRed();
   }
  
-  previous = distance;                                                        //update distances
+  previous = inches;                                                        //update distances
 }                                                                             //end of loop
 
-//debounce method to correct for voltage spikes that cause unexpected behavior
-boolean debounce(boolean last)
-{
-  boolean current = digitalRead(buttonPin);
-  if (last != current)
-  {
-    delay(5);
-    current = digitalRead(buttonPin);
-  }
-  return current;
-}
 
 //color methods;
 void green()
@@ -170,13 +177,7 @@ void flashRed()
   digitalWrite(rLED, HIGH);
   delay(100);
 }
-void flashGreen()
-{
-  digitalWrite(gLED, LOW);                  //flicker green LED when button pushed
-  delay(50);
-  digitalWrite(gLED,HIGH);
-  delay(50);
-}
+
 void off()
 {
   digitalWrite(gLED, HIGH);                  //turn off the LED
