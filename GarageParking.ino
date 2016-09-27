@@ -5,6 +5,7 @@ int bLED3 = 6;
 int bLED4 = 7;
 int gLED = 8;
 int rLED = 9; 
+int buttonPin = 3;
 
 //Digital pin 11 for reading in the pulse width from the MaxSonar device.
 
@@ -20,12 +21,15 @@ long pulse, inches, cm;
 
 
 //values to keep track of
-int settarget = 12; // target distance of parked car - change to make closer or further from wall
-int upper = 14;    //upper range of parking target         
-int lower = 10;    // lower range of parking target
+int set = 20; // target distance of parked car - change to make closer or further from wall
+int upper = 24;    //upper range of parking target         
+int lower = 16;    // lower range of parking target
 int count = 0;
+int range = 4;
 int previous = 0;                              //keep track of distances to identify when car is parked
 int current = 0;
+int buttonState = 0;          //keep track of button status
+int lastButtonState = 0;
 
 
 void setup()
@@ -36,6 +40,7 @@ pinMode(bLED3, OUTPUT);
 pinMode(bLED4, OUTPUT);
 pinMode(gLED, OUTPUT);
 pinMode(rLED, OUTPUT);
+pinMode(buttonPin, INPUT);
 Serial.begin(9600);
 }
 
@@ -54,15 +59,17 @@ void loop()
 
   pulse = pulseIn(pwPin, HIGH);
 
-  //147uS per inch
+  //.039 mm to an inch
 
-  inches = pulse / 147;
+  inches = pulse * .039;
 
   //change inches to centimetres
 
-  cm = inches * 2.54;
+  cm = pulse * .1;
 
+  Serial.print(pulse);
 
+  Serial.print("uS, ");
 
   Serial.print(inches);
 
@@ -72,13 +79,56 @@ void loop()
 
   Serial.print("cm");
 
+  Serial.print(" Count: ");
+
+  Serial.print(count);
+
+  Serial.print(" Set: ");
+
+  Serial.print(set);
+
   Serial.println();
   
   current = inches;                          //to check how long car has been parked in order to enter power save
  
   delay(100);                                  //Slow program down - save battery?
  
-  if(inches <= upper && inches >= lower)            //within set area, stop!
+  
+  // read the pushbutton input pin:
+  buttonState = digitalRead(buttonPin);
+
+  // compare the buttonState to its previous state
+  if (buttonState != lastButtonState) {
+    // if the state has changed, Change Set distance
+    if (buttonState == HIGH) {
+      // if the current state is HIGH then the button
+      // went from off to on:
+      set = (pulseIn(pwPin, HIGH) * .039);
+      Serial.print("New Set Point:  ");
+      Serial.println(set);
+      Serial.print("Changing Upper from: ");
+      Serial.print(upper);
+      Serial.print(" to: ");
+      Serial.println(set + range);
+      Serial.print("Changing Lower from: ");
+      Serial.print(lower);
+      Serial.print(" to: ");
+      Serial.println(set - range);
+      upper = set + range;                        //  +/- inch tolerance range 
+      lower = set - range; 
+      flashGreen();
+      delay(2000);
+    } 
+    
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
+  // save the current state as the last state,
+  //for next time through the loop
+  lastButtonState = buttonState;
+ 
+  
+if(inches <= upper && inches >= lower)            //within set area, stop!
   {
     //distance fluctuates some resulting in false movement detection
     if(current == previous || current == previous + 1 || current == previous - 1 )
@@ -110,7 +160,7 @@ void loop()
     {                                                   //no car in garage turn LED off 
       off();
     }                                              
-    if(inches < set+120 && inches > set+75)                  //car is detected
+    if(inches < set+100 && inches > set+75)                  //car is detected
     {                                                            //if distance is less than set + 120 inches and greater than set +75 inches
       blue1();
      }
@@ -122,7 +172,7 @@ void loop()
     { 
       blue3();
     } 
-    if(inches <= set+20 && inches > set+2)                  //wihtin 25-6 inches of set distance, get ready to stop
+    if(inches <= set+20 && inches > set+4)                  //wihtin 25-6 inches of set distance, get ready to stop
     { 
       blue4();
     } 
@@ -142,48 +192,108 @@ void loop()
 //color methods;
 void green()
 {
-   digitalWrite(gLED, LOW);                 //because of pull-up resistor circuit, code is inverted 
-}
-void red()
-{
-  digitalWrite(rLED, LOW);
-}
-void blue1()
-{
-  digitalWrite(bLED1, LOW); 
-}
-void blue2()
-{
-  digitalWrite(bLED1, LOW); 
-  digitalWrite(bLED2, LOW); 
-}
-void blue3()
-{
+  digitalWrite(gLED, LOW);
   digitalWrite(bLED1, LOW); 
   digitalWrite(bLED2, LOW); 
   digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+   digitalWrite(gLED, HIGH);                  
+}
+void red()
+{
+  digitalWrite(gLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+  digitalWrite(rLED, HIGH);
+}
+void blue1()
+{
+  digitalWrite(gLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+  digitalWrite(bLED1, HIGH); 
+}
+void blue2()
+{
+  digitalWrite(gLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+  digitalWrite(bLED1, HIGH); 
+  digitalWrite(bLED2, HIGH); 
+}
+void blue3()
+{
+  digitalWrite(gLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+  digitalWrite(bLED1, HIGH); 
+  digitalWrite(bLED2, HIGH); 
+  digitalWrite(bLED3, HIGH); 
 }
 void blue4()
 {
+  digitalWrite(gLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW);
+  digitalWrite(bLED1, HIGH); 
+  digitalWrite(bLED2, HIGH); 
+  digitalWrite(bLED3, HIGH); 
+  digitalWrite(bLED4, HIGH); 
+}
+void flashRed()
+{
+  digitalWrite(gLED, LOW);
   digitalWrite(bLED1, LOW); 
   digitalWrite(bLED2, LOW); 
   digitalWrite(bLED3, LOW); 
   digitalWrite(bLED4, LOW); 
-}
-void flashRed()
-{
-  digitalWrite(rLED, LOW);                     //flash red LED
+  digitalWrite(rLED, HIGH);                     //flash red LED
   delay(100);
-  digitalWrite(rLED, HIGH);
+  digitalWrite(rLED, LOW);
+  delay(100);
+}
+
+void flashGreen()
+{
+  digitalWrite(rLED, LOW);
+  digitalWrite(bLED1, LOW); 
+  digitalWrite(bLED2, LOW); 
+  digitalWrite(bLED3, LOW); 
+  digitalWrite(bLED4, LOW); 
+  digitalWrite(gLED, HIGH);                     //flash green LED
+  delay(100);
+  digitalWrite(gLED, LOW);
+  delay(100);
+  digitalWrite(gLED, HIGH);                     //flash green LED
+  delay(100);
+  digitalWrite(gLED, LOW);
+  delay(100);
+  digitalWrite(gLED, HIGH);                     //flash green LED
+  delay(100);
+  digitalWrite(gLED, LOW);
+  delay(100);
+  digitalWrite(gLED, HIGH);                     //flash green LED
+  delay(100);
+  digitalWrite(gLED, LOW);
   delay(100);
 }
 
 void off()
 {
-  digitalWrite(gLED, HIGH);                  //turn off the LED
-  digitalWrite(rLED, HIGH);
-  digitalWrite(bLED1, HIGH);  
-  digitalWrite(bLED2, HIGH);  
-  digitalWrite(bLED3, HIGH);  
-  digitalWrite(bLED4, HIGH);  
+  digitalWrite(gLED, LOW);                  //turn off the LED
+  digitalWrite(rLED, LOW);
+  digitalWrite(bLED1, LOW);  
+  digitalWrite(bLED2, LOW);  
+  digitalWrite(bLED3, LOW);  
+  digitalWrite(bLED4, LOW);  
 }
